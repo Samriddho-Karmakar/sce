@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Samriddho Computer Education</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header>
+  <h1>SCE</h1>
+  <button id="addBtn">+ Add Student</button>
+</header>
+
+<main id="cards"></main>
+
+<!-- ADD / EDIT MODAL -->
+<div id="modal" class="hidden">
+  <div class="modal-box">
+    <h2>Student Details</h2>
+
+    <label>Name</label>
+    <input id="name">
+
+    <label>Class / Course</label>
+    <input id="course">
+
+    <label>Fee Amount (₹)</label>
+    <input id="fee" type="number">
+
+    <label>Date of Admission</label>
+    <input id="admission" type="date">
+
+    <label>Phone</label>
+    <input id="phone">
+
+    <label>Address</label>
+    <input id="address">
+
+    <label>ID Number</label>
+    <input id="idnum">
+
+    <label>Days of Coming</label>
+    <select id="days" multiple size="7">
+      <option>Monday</option>
+      <option>Tuesday</option>
+      <option>Wednesday</option>
+      <option>Thursday</option>
+      <option>Friday</option>
+      <option>Saturday</option>
+      <option>Sunday</option>
+    </select>
+
+    <label class="inline">
+      <input type="checkbox" id="paid">
+      Fees Paid
+    </label>
+
+    <div class="actions">
+      <button id="saveBtn">Save</button>
+      <button id="closeBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
