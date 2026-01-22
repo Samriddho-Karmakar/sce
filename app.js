@@ -1,18 +1,18 @@
-/* Notification permission */
+/* ================= NOTIFICATION PERMISSION ================= */
 if ("Notification" in window && Notification.permission !== "granted") {
   Notification.requestPermission();
 }
 
+/* ================= STORAGE ================= */
 const STORAGE_KEY = "students";
 let editIndex = null;
 
-/* Elements */
+/* ================= ELEMENTS ================= */
 const modal = document.getElementById("modal");
 const addBtn = document.getElementById("addBtn");
 const saveBtn = document.getElementById("saveBtn");
 const closeBtn = document.getElementById("closeBtn");
 
-/* Inputs */
 const nameEl = document.getElementById("name");
 const courseEl = document.getElementById("course");
 const feeEl = document.getElementById("fee");
@@ -22,8 +22,10 @@ const addressEl = document.getElementById("address");
 const idEl = document.getElementById("idnum");
 const daysEl = document.getElementById("days");
 const paidEl = document.getElementById("paid");
+const searchEl = document.getElementById("searchBox");
+const cardsEl = document.getElementById("cards");
 
-/* Helpers */
+/* ================= HELPERS ================= */
 function getStudents() {
   return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
 }
@@ -32,43 +34,99 @@ function saveStudents(data) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
-function calculateDueDay(admissionDate) {
-  if (!admissionDate) return "";
-  return new Date(admissionDate).getDate();
+function currentMonthKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}`;
 }
 
+/* ================= DUE CHECK (CORRECT MONTHLY LOGIC) ================= */
+function isOverdue(student) {
+  if (!student.admission) return false;
 
-/* Render */
+  const today = new Date();
+  const admissionDate = new Date(student.admission);
+
+  const dueThisMonth = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    admissionDate.getDate()
+  );
+
+  const thisMonth = currentMonthKey();
+
+  return (
+    today >= dueThisMonth &&
+    student.lastPaidMonth !== thisMonth
+  );
+}
+
+/* ================= AUTO RESET + NOTIFICATION ================= */
+function monthlyCheckAndNotify() {
+  const students = getStudents();
+  const thisMonth = currentMonthKey();
+  let changed = false;
+
+  students.forEach(s => {
+    if (!s.admission) return;
+
+    if (isOverdue(s)) {
+      if (s.paid !== false) {
+        s.paid = false;
+        changed = true;
+      }
+
+      if (Notification.permission === "granted") {
+        new Notification("Fee Due Reminder", {
+          body: `${s.name} student has due his fees`,
+          icon: "icon-192.png"
+        });
+      }
+    }
+  });
+
+  if (changed) saveStudents(students);
+}
+
+/* ================= RENDER ================= */
 function renderStudents() {
-  const container = document.getElementById("cards");
-  container.innerHTML = "";
-
-  const today = new Date().getDate();
+  cardsEl.innerHTML = "";
   const students = getStudents();
 
   students.forEach((s, i) => {
-    const div = document.createElement("div");
-    div.className = "card";
+    if (!s.name) return;
 
-    div.innerHTML = `
+    const card = document.createElement("div");
+    card.className = "card";
+
+    card.innerHTML = `
       <strong>${s.name}</strong><br>
+      ID: ${s.id}<br>
       ${s.course}<br>
       Fee: ₹${s.fee}<br>
-      Due Day: ${s.dueDay}
+      Due Day: ${new Date(s.admission).getDate()}
     `;
 
-    // 🔴 OVERDUE LOGIC
-    if (s.dueDay <= today && s.paid === false) {
-      div.style.backgroundColor = "#d32f2f";
-      div.style.color = "white";
+    if (isOverdue(s)) {
+      card.style.backgroundColor = "#d32f2f";
+      card.style.color = "white";
     }
 
-    div.onclick = () => openEdit(i);
-    container.appendChild(div);
+    card.onclick = () => openEdit(i);
+    cardsEl.appendChild(card);
   });
 }
 
-/* Modal */
+/* ================= SEARCH (NAME + ID + COURSE) ================= */
+searchEl.addEventListener("input", () => {
+  const q = searchEl.value.toLowerCase();
+  document.querySelectorAll(".card").forEach(card => {
+    card.style.display = card.textContent.toLowerCase().includes(q)
+      ? "block"
+      : "none";
+  });
+});
+
+/* ================= MODAL ================= */
 addBtn.onclick = () => {
   editIndex = null;
   modal.classList.remove("hidden");
@@ -76,40 +134,40 @@ addBtn.onclick = () => {
 
 closeBtn.onclick = () => modal.classList.add("hidden");
 
-/* Save */
+/* ================= SAVE ================= */
 saveBtn.onclick = () => {
-  const days = Array.from(document.getElementById("days").selectedOptions)
-  .map(option => option.value);
-
+  const selectedDays = Array.from(daysEl.selectedOptions).map(o => o.value);
+  const thisMonth = currentMonthKey();
 
   const student = {
     name: nameEl.value,
     course: courseEl.value,
     fee: feeEl.value,
     admission: admissionEl.value,
-    dueDay: calculateDueDay(admissionEl.value),
-
     phone: phoneEl.value,
     address: addressEl.value,
     id: idEl.value,
-    days,
-    paid: paidEl.checked
+    days: selectedDays,
+    paid: paidEl.checked,
+    lastPaidMonth: paidEl.checked ? thisMonth : null
   };
 
   const students = getStudents();
-  if (editIndex !== null) students[editIndex] = student;
-  else students.push(student);
+
+  if (editIndex !== null) {
+    students[editIndex] = student;
+  } else {
+    students.push(student);
+  }
 
   saveStudents(students);
   modal.classList.add("hidden");
   renderStudents();
 };
 
-/* Edit */
+/* ================= EDIT ================= */
 function openEdit(index) {
-  const students = getStudents();
-  const s = students[index];
-
+  const s = getStudents()[index];
   editIndex = index;
 
   nameEl.value = s.name || "";
@@ -121,18 +179,13 @@ function openEdit(index) {
   idEl.value = s.id || "";
   paidEl.checked = s.paid || false;
 
-  // MULTI DAY FIX
   Array.from(daysEl.options).forEach(opt => {
     opt.selected = s.days && s.days.includes(opt.value);
   });
 
-  document.getElementById("modal").classList.remove("hidden");
+  modal.classList.remove("hidden");
 }
 
-// Force close modal
-document.getElementById("closeBtn").addEventListener("click", () => {
-  document.getElementById("modal").classList.add("hidden");
-});
-
-/* Init */
+/* ================= INIT ================= */
+monthlyCheckAndNotify();
 renderStudents();
